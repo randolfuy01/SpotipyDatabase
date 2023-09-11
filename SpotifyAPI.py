@@ -1,6 +1,7 @@
 import requests
 from dotenv import load_dotenv
 import os 
+import base64
 
 class SpotifyAPI:
     
@@ -23,6 +24,21 @@ class SpotifyAPI:
         accessToken = authResponseData['access_token']
         return accessToken
     
+    def refreshToken(self):
+        authclient = self.clientID + ":" + self.clientSecret
+        authEncode = 'Basic ' + base64.b64encode(self.clientID()).decode()
+        headers = {
+            'Authization': authEncode
+        }
+
+        data = {
+            'grant_type' : 'refresh_token',
+            'refresh_token' : self.getToken()
+        }
+
+        response = requests.post('https://accounts.spotify.com/api/token', data=data, headers=headers)
+
     def getHeader(self):
         headers = {'Authorization': 'Bearer {token}'.format(token = self.getToken())}
         return headers
+    
