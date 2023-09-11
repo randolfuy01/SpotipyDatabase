@@ -1,9 +1,14 @@
 import requests
+from dotenv import load_dotenv
+import os 
+
 class SpotifyAPI:
     
     def __init__(self) -> None:
-        self.clientID = ""
-        self.clientSecret = ""
+
+        load_dotenv()
+        self.clientID = os.getenv("Client_ID")
+        self.clientSecret = os.getenv("Client_Secret")
 
     def getToken(self):
         authUrl = 'https://accounts.spotify.com.api/token'
