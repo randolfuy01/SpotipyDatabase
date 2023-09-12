@@ -1,44 +1,54 @@
-import requests
-from dotenv import load_dotenv
-import os 
-import base64
+from flask import Flask, session, url_for, redirect, request
+from spotipy.oauth2 import SpotifyOAuth
+import spotipy
+import time
 
-class SpotifyAPI:
-    
-    def __init__(self) -> None:
+app = Flask(__name__)
+app.config['SESSION_COOKIE_NAME'] = 'Cookie'
+app.secret_key = 'asdjkvsdcxmnaslkjjf^74'
+TOKEN_INFO = 'token_info'
 
-        load_dotenv()
-        self.clientID = os.getenv("Client_ID")
-        self.clientSecret = os.getenv("Client_Secret")
+@app.route('/')
+def login():
+    auth_url = create_spotify_oauth().get_authorize_url()
+    return redirect(auth_url)
 
-    def getToken(self):
-        authUrl = 'https://accounts.spotify.com.api/token'
 
-        authResponse = requests.post(authUrl, {
-            'grant_type': 'client_credentials',
-            'client_id' : self.clientID,
-            'client_secret' : self.clientSecret
-        })
+@app.route('/redirect')
+def redirect_page():
+    session.clear()
+    code = request.args.get('code')
+    token_info = create_spotify_oauth().get_access_token(code)
+    session[TOKEN_INFO] = token_info
+    return redirect(url_for('saveTopSongs', external = True))
 
-        authResponseData = authResponse.json()
-        accessToken = authResponseData['access_token']
-        return accessToken
-    
-    def refreshToken(self):
-        authclient = self.clientID + ":" + self.clientSecret
-        authEncode = 'Basic ' + base64.b64encode(self.clientID()).decode()
-        headers = {
-            'Authization': authEncode
-        }
 
-        data = {
-            'grant_type' : 'refresh_token',
-            'refresh_token' : self.getToken()
-        }
+@app.route('/saveTopSongs')
+# Get the rest of the top songs saved
+def saveTopSongs():
 
-        response = requests.post('https://accounts.spotify.com/api/token', data=data, headers=headers)
+    try:
+        token_info = getToken()
+    except:
+        print("User not logged in")
+        return redirect('/')
 
-    def getHeader(self):
-        headers = {'Authorization': 'Bearer {token}'.format(token = self.getToken())}
-        return headers
-    
+def getToken():
+    token_info = session.get(TOKEN_INFO, None)
+    if not token_info:
+        redirect(url_for('login', external = False))
+    now = int(time.time)
+    expired_token = token_info['expires_at'] - now < 60
+    if(expired_token):
+        spotify_oauth = SpotifyOAuth.refresh_access_token(token_info['refresh_token'])
+    return token_info
+
+def create_spotify_oauth():
+    return SpotifyOAuth(client_id= "86a30b295d3d4a7db3f98f4048a45a69", 
+                        client_secret= "ea80109390c24cf6b48a9f36c28d3be2",
+                        redirect_uri=url_for('/redirect', _external = True),
+                        scope = 'user-top-read'
+                        )
+
+
+app.run(debug=True)
